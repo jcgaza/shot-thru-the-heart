@@ -40,8 +40,7 @@ def connectPacket():
   newPlayer = player_pb2.Player()
   
   print("Enter player name: ", end="")
-  newPlayer.name = str(input())
-  connect.player = newPlayer
+  connect.player.name = input()
 
   s.send(connect.SerializeToString())
   data = s.recv(1024)
