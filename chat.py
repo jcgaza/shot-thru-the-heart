@@ -1,9 +1,10 @@
 import socket
+import select
 import player_pb2
 import tcp_packet_pb2
 
 from threading import Thread
-from sys import exit
+from sys import exit, stdout
 
 HOST = "202.92.144.45"
 PORT = 80
@@ -37,16 +38,27 @@ def parser(data):
   else:
     pass
 
-  print("Message: ", sep="")
-
 # For receiving messages
-def receivePacket(parser):
-  while isConnected:
-    try:
-      data = s.recv(BUFFER)
-      parser(data)
-    except OSError:
-      break
+# def receivePacket(parser):
+#   while isConnected:
+#     try:
+#       read_sockets, write_sockets, error_sockets = select.select([s], [], [])
+
+#       for sock in read_sockets:
+#         if sock == s:
+#           data = s.recv(BUFFER)
+          
+#           if not data:
+#             print("You have disconnected.")
+#             terminate()
+#           else:
+#             parser(data)
+#         else:
+#           writeMessage()
+#     except OSError:
+#       break
+#     except ValueError:
+#       break
 
 # Creates lobby
 def createLobbyPacket():
@@ -87,6 +99,24 @@ def helpMenu():
   print("players - Print list of connected players")
   print("exit - Disconnect from lobby")
 
+def writeMessage():
+  message = input("Message: ")
+  stdout.flush()
+
+  if message.lower() == "help":
+    helpMenu()
+  elif message.lower() == "players":
+    playerListPacket()
+  elif message.lower() == "exit":
+    disconnectPacket()
+  else:
+    chat.message = message
+    s.send(chat.SerializeToString())
+
+def terminate():
+  isConnected = False
+  s.shutdown(1)
+  s.close()
 
 ### MAIN
 
@@ -129,24 +159,25 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
   helpMenu()
 
   # For receiving messages
-  receiver = Thread(target=receivePacket, args=[parser])
-  receiver.start()
+  # receiver = Thread(target=receivePacket, args=[parser])
+  # receiver.start()
 
-  while True:
-    print("Message: ", end="")
-    message = input()
+  while isConnected:
+    try:
+      read_sockets, write_sockets, error_sockets = select.select([0,s], [], [])
 
-    if message.lower() == "help":
-      helpMenu()
-    elif message.lower() == "players":
-      playerListPacket()
-    elif message.lower() == "exit":
-      disconnectPacket()
+      for sock in read_sockets:
+        if sock == s:
+          data = s.recv(BUFFER)
+          
+          if not data:
+            print("You have disconnected.")
+            terminate()
+          else:
+            parser(data)
+        else:
+          writeMessage()
+    except ValueError:
       break
-    else:
-      chat.message = message
-      s.send(chat.SerializeToString())
-
-  isConnected = False
-  s.shutdown(1)
-  s.close()
+    except OSError:
+      break
