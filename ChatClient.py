@@ -16,25 +16,30 @@ class ChatClient():
     self.tcp = tcp_packet_pb2.TcpPacket()
     self.connect = self.tcp.ConnectPacket()
     self.connect.type = self.tcp.CONNECT
+    self.disconnect = self.tcp.DisconnectPacket()
+    self.disconnect.type = self.tcp.DISCONNECT
     
+    # try:
+    #   self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #   self.s.connect(ChatClient.ADDRESS)
+    # except OSError, (value, message):
+    #   if self.s:
+    #     self.s.close()
+    #     print("Could not make connection.")
+    #     exit()
+
     self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.s.connect(ChatClient.ADDRESS)
 
-    except socket.error, (value, message):
-      if self.s:
-        self.s.close()
-        print("Could not make connection.")
-        exit()
-
     # Connect Packet
-    self.tcp.type = tcp.CONNECT
+    self.tcp.type = self.tcp.CONNECT
     self.connect.player.name = input("Enter name: ")
     
     lobbyID = self.createLobbyPacket()
     self.connect.lobby_id = lobbyID
 
     self.s.send(self.connect.SerializeToString())
-    data = self.s.recv(BUFFER)
+    data = self.s.recv(ChatClient.BUFFER)
     self.tcp.ParseFromString(data)
 
     # ERR_LDNE Packet
@@ -51,9 +56,9 @@ class ChatClient():
     self.isConnected = True
 
     # Chat Packet
-    self.chat = tcp.ChatPacket()
-    self.chat.type = tcp.CHAT
-    self.chat.player.name = connect.player.name
+    self.chat = self.tcp.ChatPacket()
+    self.chat.type = self.tcp.CHAT
+    self.chat.player.name = self.connect.player.name
 
     self.helpMenu()
 
@@ -67,7 +72,7 @@ class ChatClient():
 
         for sock in read_sockets:
           if sock == self.s:
-            data = self.s.recv(BUFFER)
+            data = self.s.recv(ChatClient.BUFFER)
             
             if not data:
               print("You have disconnected.")
@@ -82,7 +87,7 @@ class ChatClient():
         break
 
   # Checking data received
-  def parser(data):
+  def parser(self, data):
     self.tcp.ParseFromString(data)
 
     if self.tcp.type == self.tcp.CONNECT:
@@ -105,7 +110,7 @@ class ChatClient():
       pass
 
   # Creates lobby
-  def createLobbyPacket():
+  def createLobbyPacket(self):
     if input("Create lobby? [Y/N] ").lower() == "y":
       lobby = self.tcp.CreateLobbyPacket()
       lobby.type = self.tcp.CREATE_LOBBY
@@ -114,7 +119,7 @@ class ChatClient():
       lobby.max_players = int(input())
 
       self.s.send(lobby.SerializeToString())
-      data = self.s.recv(BUFFER)
+      data = self.s.recv(ChatClient.BUFFER)
       lobby.ParseFromString(data)
       lobbyID = lobby.lobby_id
     else:
@@ -122,28 +127,31 @@ class ChatClient():
 
     return lobbyID
 
-  def playerListPacket():
+  def playerListPacket(self):
     playerList = self.tcp.PlayerListPacket()
     playerList.type = self.tcp.PLAYER_LIST
 
     self.s.send(playerList.SerializeToString())
-    data = self.s.recv(BUFFER)
+    data = self.s.recv(ChatClient.BUFFER)
     playerList.ParseFromString(data)
 
     for player in playerList.player_list:
       print("{} is here.".format(player.name))
 
-  def terminate():
+  def terminate(self):
     self.isConnected = False
     self.s.shutdown(1)
     self.s.close()
 
-  def helpMenu():
+  def helpMenu(self):
     print("help - Print commands")
     print("players - Print list of connected players")
     print("exit - Disconnect from lobby")
 
-  def writeMessage():
+  def disconnectPacket(self):
+    self.s.send(self.disconnect.SerializeToString())
+
+  def writeMessage(self):
     message = input("Message: ")
     stdout.flush()
 
@@ -151,6 +159,8 @@ class ChatClient():
       self.helpMenu()
     elif message.lower() == "players":
       self.playerListPacket()
+    elif message.lower() == "exit":
+      self.disconnectPacket()
     else:
       self.chat.message = message
-      self.s.send(chat.SerializeToString())
+      self.s.send(self.chat.SerializeToString())
