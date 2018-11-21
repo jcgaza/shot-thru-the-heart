@@ -31,7 +31,7 @@ class ChatClient():
 
     # Connect Packet
     self.tcp.type = self.tcp.CONNECT
-    self.connect.player.name = input("Enter name: ")
+    self.connect.player.name = "You"
     
     lobbyID = self.createLobbyPacket()
     self.connect.lobby_id = lobbyID
