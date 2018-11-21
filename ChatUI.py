@@ -6,7 +6,7 @@ import string
 import webbrowser
 #import ChatClient
 
-saved_lobby = ["CMSC137"]
+#saved_lobby = ["CMSC137"]
 saved_username = ["You"]
 
 # checks if username file exists, if not, makes one.
@@ -23,22 +23,6 @@ else:
         for line in file:
             saved_username.append(line.replace("\n", ""))
     pass
-
-# checks if username file exists, if not, makes one.
-if not os.path.isfile("lobby.txt"):
-    # doesnt exist, creates usernames.txt file
-    print('"lobby.txt" file doesn\'t exist. Creating new file.')
-    with open ("lobby.txt", 'wb') as file:
-        pass
-
-else:
-    # file exists, takes all existing usernames stored in file and adds them to saved_username list
-    print('"lobby.txt" file found.')
-    with open("lobby.txt", 'r') as file:
-        for line in file:
-            saved_lobby.append(line.replace("\n", ""))
-    pass
-
 
 # checks if default_win_size file exists, if not, makes one.
 if not os.path.isfile("default_win_size.txt"):
@@ -73,18 +57,12 @@ class ChatInterface(Frame):
         menu = Menu(self.master)
         self.master.config(menu=menu, bd=5)
 # Menu bar
-    # Lobby
-        lobby = Menu(menu, tearoff=0)
-        menu.add_cascade(label="Lobby", menu=lobby)
-        lobby.add_command(label="Enter Lobby", command=lambda: self.enter_lobby(height=80))
-        lobby.add_command(label="View Lobby No.", command=self.view_lobby_no)
-
-
     # File
         file = Menu(menu, tearoff=0)
         menu.add_cascade(label="File", menu=file)
         file.add_command(label="Save Chat Log", command=self.save_chat)
         file.add_command(label="Clear Chat", command=self.clear_chat)
+        file.add_command(label="Lobby No. ")
         file.add_separator()
         file.add_command(label="Exit", command=self.client_exit)
 
@@ -170,146 +148,6 @@ class ChatInterface(Frame):
         self.sent_label = Label(self.entry_frame, font="Verdana 7", text=date, bg=self.tl_bg2, fg=self.tl_fg)
         self.sent_label.pack(side=LEFT, fill=X, padx=3)
 
-# Lobby functions
-    def view_lobby_no(self):
-        with open("lobby.txt", 'r') as lobby:
-            view_lobby = str(lobby.readlines())
-
-        view_lobby = re.sub("[\[\]']", "", view_lobby)
-        view_lobby = view_lobby.replace("\\n", "")
-
-        self.error_window(error_msg="Lobby No: \n\n" + view_lobby, type="simple_error",
-                          button_msg="Close", height='150')
-
-    def enter_lobby_main_event(self, event):
-        saved_lobby.append(self.lobby_entry.get())
-        self.enter_lobby_main(lobby=saved_lobby[-1])
-
-    def enter_lobby_main(self, lobby, default=False):
-        def write_lobby():
-            with open('lobby.txt', 'w') as filter:
-                for item in saved_lobby:
-                    filer.write(item + "\n")
-
-        found = False
-        for char in lobby:
-            if char in string.punctuation:
-                found = True
-
-        if found is True:
-            saved_lobby.remove(lobby)
-
-        elif len(lobby) > 20:
-            saved_lobby.remove(lobby)
-           
-        elif len(lobby) < 2:
-            saved_lobby.remove(lobby)
-
-        # detects if user entered already current username
-        elif len(saved_lobby) >= 2 and lobby == saved_lobby[-2]:
-            self.error_window("You are already in that lobby!", type="lobby_error", height='100')
-        else:
-            # closes change username window, adds username to list, and displays notification
-            self.close_lobby_window()
-            write_lobby()
-            self.send_message_insert("You have entered lobby no. " + '"' + lobby + '".')
-
-    def enter_lobby(self, type="lobby", label=None, height=None):
-        self.enter_lobby_window = Toplevel()
-
-        if type == "lobby":
-            self.enter_lobby_window.bind("<Return>", self.enter_lobby_main_event)
-        elif type == "window_size":
-            self.enter_lobby_window.bind("<Return>", self.change_window_size_event)
-
-        self.enter_lobby_window.configure(bg=self.tl_bg)
-        self.enter_lobby_window.focus_set()
-        self.enter_lobby_window.grab_set()
-
-        # gets main window width and height to position change username window
-        half_root_width = root.winfo_x()+100
-        half_root_height = root.winfo_y()+60
-        placement = '180x' + str(height) + '+' + str(int(half_root_width)) + '+' + str(int(half_root_height))
-        self.enter_lobby_window.geometry(placement)
-
-        # frame for entry field
-        enter_lobby_frame = Frame(self.enter_lobby_window, bg=self.tl_bg)
-        enter_lobby_frame.pack(pady=5)
-
-        if label:
-            self.window_label = Label(enter_lobby_frame, text=label, fg=self.tl_fg)
-            self.window_label.pack(pady=4, padx=4)
-
-        self.lobby_entry = Entry(enter_lobby_frame, width=22, bg=self.tl_bg, fg=self.tl_fg, bd=1,
-                      insertbackground=self.tl_fg)
-        self.lobby_entry.pack(pady=3, padx=10)
-
-        # Frame for Change button and cancel button
-        buttons_frame = Frame(self.change_lobby_window, bg=self.tl_bg)
-        buttons_frame.pack()
-
-    # implement username/ size
-        if type == "lobby":
-            lobby_command = lambda: self.enter_lobby_main(self.lobby_entry.get())
-        elif type == "window_size":
-            lobby_command = lambda: self.change_window_size_main(self.lobby_entry.get())
-
-        change_button = Button(buttons_frame, relief=GROOVE, text="Enter", width=8, bg=self.tl_bg, bd=1,
-                               fg=self.tl_fg, activebackground=self.tl_bg, activeforeground=self.tl_fg,
-                               command=lobby_command)
-        change_button.pack(side=LEFT, padx=4, pady=3)
-
-
-    # cancel
-        cancel_button = Button(buttons_frame, relief=GROOVE, text="Cancel", width=8, bg=self.tl_bg, bd=1,
-                               fg=self.tl_fg, command=self.close_lobby_window,
-                               activebackground=self.tl_bg, activeforeground=self.tl_fg)
-        cancel_button.pack(side=RIGHT, padx=4, pady=3)
-
-    def error_lobby_window(self, error_msg, type="simple_error", height='100', button_msg="Okay"):
-        # try's to destroy change username window if its an error with username content
-        try:
-            self.change_lobby_window.destroy()
-        except AttributeError:
-            pass
-
-        # makes top level with placement relative to root and specified error msg
-        self.error_lobby_window_tl = Toplevel(bg=self.tl_bg)
-        self.error_lobby_window_tl.focus_set()
-        self.error_lobby_window_tl.grab_set()
-
-        # gets main window width and height to position change username window
-        half_root_width = root.winfo_x()
-        half_root_height = root.winfo_y() + 60
-        placement = '400x' + str(height) + '+' + str(int(half_root_width)) + '+' + str(int(half_root_height))
-        self.error_lobby_window_tl.geometry(placement)
-
-        too_long_frame = Frame(self.error_window_tl, bd=5, bg=self.tl_bg)
-        too_long_frame.pack()
-
-        self.error_scrollbar = Scrollbar(too_long_frame, bd=0)
-        self.error_scrollbar.pack(fill=Y, side=RIGHT)
-
-        error_text = Text(too_long_frame, font=self.font, bg=self.tl_bg, fg=self.tl_fg, wrap=WORD, relief=FLAT,
-                          height=round(int(height)/30), yscrollcommand=self.error_scrollbar.set)
-        error_text.pack(pady=6, padx=6)
-        error_text.insert(INSERT, error_msg)
-        error_text.configure(state=DISABLED)
-        self.error_scrollbar.config(command=self.text_box.yview)
-
-        button_frame = Frame(too_long_frame, width=12)
-        button_frame.pack()
-
-        okay_button = Button(button_frame, relief=GROOVE, bd=1, text=button_msg, font=self.font, bg=self.tl_bg,
-                             fg=self.tl_fg, activebackground=self.tl_bg, width=5, height=1,
-                             activeforeground=self.tl_fg, command=lambda: self.close_error_window(type))
-        okay_button.pack(side=LEFT, padx=5)
-
-        if type == "lobby_history_error":
-            cancel_button = Button(button_frame, relief=GROOVE, bd=1, text="Cancel", font=self.font, bg=self.tl_bg,
-                             fg=self.tl_fg, activebackground=self.tl_bg, width=5, height=1,
-                             activeforeground=self.tl_fg, command=lambda: self.close_error_window("simple_error"))
-            cancel_button.pack(side=RIGHT, padx=5)
 
 
 # File functions
@@ -350,6 +188,7 @@ class ChatInterface(Frame):
         self.text_box.delete(1.0, END)
         self.text_box.delete(1.0, END)
         self.text_box.config(state=DISABLED)
+
 
 # Help functions
     def features_msg(self):
