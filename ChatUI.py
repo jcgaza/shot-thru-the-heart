@@ -4,7 +4,8 @@ import re
 import os
 import string
 import webbrowser
-#import ChatClient
+from ChatClient import ChatClient
+from threading import Thread
 
 #saved_lobby = ["CMSC137"]
 saved_username = ["You"]
@@ -42,9 +43,11 @@ else:
 
 
 class ChatInterface(Frame):
+    def __init__(self, name, lobbyID, numPlayers, master=None):
+        self.chat = ChatClient(name, lobbyID, numPlayers, self.send_message_insert)
+        chatThread = Thread(target=self.chat.receiveMessages)
+        chatThread.start()
 
-    def __init__(self, master=None):
-        #self.chat = ChatClient()
         Frame.__init__(self, master)
         self.master = master
 
@@ -147,7 +150,6 @@ class ChatInterface(Frame):
 
         self.sent_label = Label(self.entry_frame, font="Verdana 7", text=date, bg=self.tl_bg2, fg=self.tl_fg)
         self.sent_label.pack(side=LEFT, fill=X, padx=3)
-
 
 
 # File functions
@@ -286,7 +288,7 @@ class ChatInterface(Frame):
             # closes change username window, adds username to list, and displays notification
             self.close_username_window()
             write_usernames()
-            self.send_message_insert("Username changed to " + '"' + username + '".')
+            self.send_message_insert(None, "Username changed to " + '"' + username + '".')
 
     # allows "enter" key for sending msg
     def send_message_event(self, event):
@@ -297,22 +299,28 @@ class ChatInterface(Frame):
     def send_message(self, username):
 
         user_input = self.entry_field.get()
+        self.chat.writeMessage(user_input)
 
-        username = saved_username[-1] + ": "
-        message = (username, user_input)
-        readable_msg = ''.join(message)
-        readable_msg.strip('{')
-        readable_msg.strip('}')
+        # username = saved_username[-1] + ": "
+        # message = (username, user_input)
+        # readable_msg = ''.join(message)
+        # readable_msg.strip('{')
+        # readable_msg.strip('}')
 
-        # clears entry field, passes formatted msg to send_message_insert
-        if user_input != '':
-            self.entry_field.delete(0, END)
-            self.send_message_insert(readable_msg)
+        # # clears entry field, passes formatted msg to send_message_insert
+        # if user_input != '':
+        #     self.entry_field.delete(0, END)
+        #     self.send_message_insert(None, readable_msg)
 
     # inserts user input into text box
-    def send_message_insert(self, message):
+    def send_message_insert(self, user, message):
         self.text_box.configure(state=NORMAL)
-        self.text_box.insert(END, message + '\n')
+        
+        if user is None:
+            self.text_box.insert(END, message + '\n')
+        else:
+            self.text_box.insert(END, user + ': ' + message + '\n')
+
         self.last_sent_label(str(time.strftime( "Last message sent: " + '%B %d, %Y' + ' at ' + '%I:%M %p')))
         self.text_box.see(END)
         self.text_box.configure(state=DISABLED)
@@ -426,7 +434,7 @@ class ChatInterface(Frame):
 # Use default username ("You")
     def default_username(self):
         saved_username.append("You")
-        self.send_message_insert("Username changed to default.")
+        self.send_message_insert(None, "Username changed to default.")
 
 # promps user to Clear username history (deletes usernames.txt file and clears saved_username list)
     def clear_username_history(self):
@@ -438,7 +446,7 @@ class ChatInterface(Frame):
          saved_username.clear()
          saved_username.append("You")
 
-         self.send_message_insert("Username history cleared.")
+         self.send_message_insert(None, "Username history cleared.")
 
 # opens window showing username history (possible temp feature)
     def view_username_history(self):
@@ -499,7 +507,7 @@ class ChatInterface(Frame):
 
         self.close_username_window()
 
-        self.send_message_insert("Default window size changed to " + window_size + ".")
+        self.send_message_insert(None, "Default window size changed to " + window_size + ".")
 
 # return to default window size
     def default_window_size(self):
@@ -518,13 +526,3 @@ class ChatInterface(Frame):
             self.text_box.see(END)
             self.text_box.configure(state=DISABLED)
         root.after(10, see_end)
-
-root = Tk()
-root.title("Shot-Thru-The-Heart")
-root.geometry(default_window_size)
-print(default_window_size)
-root.minsize(360,200)
-
-a = ChatInterface(root)
-
-root.mainloop()
