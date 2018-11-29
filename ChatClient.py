@@ -12,14 +12,16 @@ class ChatClient():
   BUFFER = 1024
   ADDRESS = (HOST, PORT)
 
-  def __init__(self, name, lobbyID, maxPlayers, printToUI):
-    self.printToUI = printToUI
+  def __init__(self):
+    self.printToUI = None
 
     self.tcp = tcp_packet_pb2.TcpPacket()
     self.connect = self.tcp.ConnectPacket()
     self.connect.type = self.tcp.CONNECT
     self.disconnect = self.tcp.DisconnectPacket()
     self.disconnect.type = self.tcp.DISCONNECT
+    self.chat = self.tcp.ChatPacket()
+    self.chat.type = self.tcp.CHAT
     
     try:
       self.s = socket(AF_INET, SOCK_STREAM)
@@ -30,14 +32,12 @@ class ChatClient():
       exit()
     except OSError:
       exit()
-
+    
+  def connectAndChat(self, name, lobbyId):
     # Connect Packet
     self.tcp.type = self.tcp.CONNECT
     self.connect.player.name = name
-      
-    if lobbyID is None and maxPlayers is not None: 
-      lobbyID = self.createLobby(maxPlayers)
-    self.connect.lobby_id = lobbyID
+    self.connect.lobby_id = lobbyId
 
     self.s.send(self.connect.SerializeToString())
     data = self.s.recv(ChatClient.BUFFER)
@@ -53,12 +53,10 @@ class ChatClient():
       print("Lobby is full!")
       exit()
 
-    print("You're in Lobby {}.".format(lobbyID))
+    print("You're in Lobby {}.".format(lobbyId))
     self.isConnected = True
 
     # Chat Packet
-    self.chat = self.tcp.ChatPacket()
-    self.chat.type = self.tcp.CHAT
     self.chat.player.name = self.connect.player.name
 
   # Checking data received
@@ -98,6 +96,7 @@ class ChatClient():
     data = self.s.recv(ChatClient.BUFFER)
     lobby.ParseFromString(data)
 
+    print(lobby.lobby_id)
     return lobby.lobby_id
 
   def getPlayerList(self):

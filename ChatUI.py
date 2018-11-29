@@ -315,7 +315,6 @@ class ChatInterface(Frame):
     # inserts user input into text box
     def send_message_insert(self, user, message):
         self.text_box.configure(state=NORMAL)
-        
         if user is None:
             self.text_box.insert(END, message + '\n')
         else:
