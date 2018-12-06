@@ -4,10 +4,7 @@ from pygame.locals import *
 from os import listdir
 from os.path import isfile, join
 from threading import Thread
-
 from ChatClient import ChatClient
-from widgets.Button import Button
-from widgets.InputBox import InputBox
 
 # Only read images ONCE
 IMAGE_PATH = "./assets"
