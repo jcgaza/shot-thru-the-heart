@@ -3,9 +3,11 @@ import os
 from pygame.locals import *
 from os import listdir
 from os.path import isfile, join
-from ChatClient import ChatClient
 from threading import Thread
 
+from ChatClient import ChatClient
+from widgets.Button import Button
+from widgets.InputBox import InputBox
 
 # Only read images ONCE
 IMAGE_PATH = "./assets"
@@ -38,8 +40,6 @@ START_PAGE = 1
 NAME_PAGE = 2
 CHARACTER_PAGE = 3
 MAIN_PAGE = 4
-
-specialtext = ""
 
 class Button:
   def __init__(self, name, position, method):
@@ -108,6 +108,7 @@ class App:
 
     self.chatClient = ChatClient()
     self.chatThread = Thread(target=self.chatClient.receiveMessages)
+    self.chatThread.daemon = True
 
     self.name = ""
 
@@ -128,6 +129,7 @@ class App:
     while self._running:
       for event in pg.event.get():
         if event.type == pg.QUIT:
+          self.chatClient.terminate()
           self._running = False
 
       if self._state == START_PAGE:
@@ -159,6 +161,7 @@ class App:
         if event.type == pg.QUIT:
           self._running = False
           self._state = EXIT
+          self.chatClient.terminate()
           break
 
       for player in playerButtons:
@@ -187,6 +190,7 @@ class App:
         if event.type == pg.QUIT:
           self._running = False
           self._state = EXIT
+          self.chatClient.terminate()
           break
 
         elif event.type == pg.KEYDOWN:
@@ -213,7 +217,7 @@ class App:
 
   def startPage(self):
     def versusClicked():
-        self._state = NAME_PAGE
+      self._state = NAME_PAGE
 
     def exitClicked():
       self._running = False
@@ -236,6 +240,7 @@ class App:
         if event.type == pg.QUIT:
           self._running = False
           self._state = EXIT
+          self.chatClient.terminate()
           break
 
         # Check button events
@@ -256,8 +261,12 @@ class App:
 
   def mainPage(self):
     def send(message):
+      if len(inMessages) > 36:
+        inMessages.pop(0)
+      inMessages.append(message)
+
+    def sendAction(message):
       self.chatClient.writeMessage(message)
-      inMessages.append("{}: {}".format(self.name,message))
       inputMessage.clearAll()
 
     self.chatClient.printToUI = send
@@ -266,24 +275,25 @@ class App:
 
     inMessages = []
     inputMessage = InputBox(1000, 590, 220, 30, self.font1)
-    sendButton = Button('send_button', (1230,593), lambda: send(inputMessage.text))
+    sendButton = Button('send_button', (1230,593), lambda: sendAction(inputMessage.text))
 
     rect = pg.Rect(1000, 20, 260, 560)
     txt_surface = self.font1.render("", True, TEXT_COLOR)
 
     while self._state == MAIN_PAGE:
-      self._display_surf.blit(images_dict['bg2'], [0,0])
+      self._display_surf.blit(images_dict['bg'], [0,0])
 
       for event in pg.event.get():
         if event.type == pg.QUIT:
           self._running = False
           self._state = EXIT
+          self.chatClient.terminate()
           break
 
         elif event.type == pg.KEYDOWN:
           if inputMessage.active:
             if event.key == pg.K_RETURN:
-              send(inputMessage.text)
+              sendAction(inputMessage.text)
             elif event.key == pg.K_BACKSPACE:
               inputMessage.clear()
             else:

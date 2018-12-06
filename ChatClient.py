@@ -128,9 +128,10 @@ class ChatClient():
     elif message.lower() == "exit":
       self.disconnectChat()
     else:
+      print(message)
       self.chat.message = message
       self.s.send(self.chat.SerializeToString())
-      
+
   def receiveMessages(self):
     while self.isConnected:
       try:
@@ -145,9 +146,9 @@ class ChatClient():
               self.terminate()
             else:
               self.parser(data)
-          else:
-            self.writeMessage()
       except ValueError:
         break
       except OSError:
         break
+      # data = self.s.recv(ChatClient.BUFFER)
+      # self.parser(data)
