@@ -32,6 +32,8 @@ class ChatClient():
       exit()
     except OSError:
       exit()
+
+    print("Instantiated Chat Client!")
     
   def connectAndChat(self, name, lobbyId):
     # Connect Packet
@@ -67,21 +69,21 @@ class ChatClient():
       self.connect.ParseFromString(data)
       if self.connect.update == self.connect.NEW:
         print("{} joined.".format(self.connect.player.name))
-        self.printToUI(None, "{} joined.".format(self.connect.player.name))
+        self.printToUI("{} joined.".format(self.connect.player.name))
 
     elif self.tcp.type == self.tcp.CHAT:
       self.chat.ParseFromString(data)
       print("{}: {}".format(self.chat.player.name, self.chat.message))
-      self.printToUI(self.chat.player.name, self.chat.message)
+      self.printToUI("{}: {}".format(self.chat.player.name, self.chat.message))
 
     elif self.tcp.type == self.tcp.DISCONNECT:
       self.disconnect.ParseFromString(data)
       if self.disconnect.update == self.disconnect.NORMAL:
         print("{} has disconnected.".format(self.disconnect.player.name))
-        self.printToUI(None, "{} has disconnected.".format(self.disconnect.player.name))
+        self.printToUI("{} has disconnected.".format(self.disconnect.player.name))
       elif self.disconnect.update == self.disconnect.LOST:
         print("{} lost connection.".format(self.disconnect.player.name))
-        self.printToUI(None, "{} lost connection.".format(self.disconnect.player.name))
+        self.printToUI("{} lost connection.".format(self.disconnect.player.name))
 
     else:
       pass
