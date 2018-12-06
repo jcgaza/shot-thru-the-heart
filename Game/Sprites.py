@@ -55,14 +55,15 @@ class Player(GameSprite):
     self.points = 0
 
   def arrowPickup(self, arrows):
-    for arrow in arrows:
-      if(arrow.alive == 1):
+    for arrowId, arrow in arrows.items():
+      if(arrow.isAlive == Arrow.DEAD):
         xCollision = self.axisOverlap(self.hitbox[0], 24, arrow.rect[0], arrow.rect[2])
         yCollision = self.axisOverlap(self.hitbox[1], 24, arrow.rect[1], arrow.rect[3])
         xyCollision = xCollision & yCollision
         if(xyCollision):
-          player.amountOfArrows += 1
-          arrows.pop(arrows.index(arrow))
+          self.amountOfArrows += 1
+          arrows.pop(arrowId)
+          return
 
   def wallCollision(self, direction, solids):
     xCollision = False
@@ -130,3 +131,73 @@ class Player(GameSprite):
     if now - self.lastDash >= Player.COOLDOWN:
       self.dashReady = True
       self.lastDash = now
+
+#######################ARROW CLASS#######################################
+class Arrow(GameSprite):
+  def __init__(self, x, y, number, mousePos):
+    GameSprite.__init__(self,x,y,number, ["arrowDead.png", "arrowAlive.png"])
+
+    self.direction = 0
+    self.getDirection(mousePos)
+    self.startPos = (x,y)
+    self.travelled = (x,y)
+    self.currSprite = pygame.image.load("arrowAlive.png")
+    self.rotate(270)
+    self.rect = self.image.get_rect()
+    self.rect[0] = self.x
+    self.rect[1] = self.y
+  
+  def collisionDetection(self, x, y, playerList, solids):
+    for player in playerList:
+      if (player.number == self.number):
+        continue
+      xCollision = self.axisOverlap(player.hitbox[0], 24, self.rect[0]+x, self.rect[2])
+      yCollision = self.axisOverlap(player.hitbox[1], 24, self.rect[1]+y, self.rect[3])
+      xyCollision = xCollision & yCollision
+      if(xyCollision and player.isAlive == Player.ALIVE):
+        player.isAlive = Player.DEAD
+        player.image = pygame.image.load("dead.png")
+        self.isAlive = Arrow.DEAD
+        return
+
+    for solid in solids:
+      xCollision = self.axisOverlap(solid[0], solid[2], self.rect[0]+x, self.rect[2])
+      yCollision = self.axisOverlap(solid[1], solid[3], self.rect[1]+y, self.rect[3])
+      xyCollision = xCollision & yCollision
+      if(xyCollision):
+        self.isAlive = Arrow.DEAD
+        return
+
+  def reachedMaxDist(self):
+    distance = math.sqrt((self.x-self.startPos[0])**2 + (self.y-self.startPos[1])**2)
+    if(distance >= 320):
+      self.isAlive = Arrow.DEAD
+
+  def move(self, players, solids):
+    xVal = round(math.cos(self.direction) * 20)
+    yVal = round(math.sin(self.direction) * 20)
+    
+    self.collisionDetection(xVal, yVal, players, solids)
+
+    self.x += xVal
+    self.y += yVal
+    if(self.x > 640):
+      self.x = 0
+    elif(self.x < 0):
+      self.x = 602
+    if(self.y > 640):
+      self.y = 0
+    elif(self.y < 0):
+      self.y = 602
+    
+    self.travelled = (self.travelled[0]+xVal, self.travelled[1]+yVal)
+    self.rect = self.image.get_rect()
+    self.reachedMaxDist()
+
+    if self.isAlive == Arrow.DEAD:
+      self.currSprite = pygame.image.load("arrowDead.png")
+      self.image = self.currSprite
+      self.rect = self.image.get_rect()
+
+    self.rect[0] = self.x
+    self.rect[1] = self.y

@@ -15,7 +15,7 @@ class GameClient(object):
     self.gameDisplay = pygame.display.set_mode((960, 640))
     self.clock = pygame.time.Clock()
     self.players = []
-    self.arrows = []
+    self.arrows = {}
     self.clientPlayer = 0
     self.gameMap = self.loadMap()
     self.solids = self.getSolids(self.gameMap)
@@ -40,6 +40,9 @@ class GameClient(object):
       self.players[i].y = data[i][1]
       self.players[i].direction = data[i][2]
       self.players[i].rotate(270)
+
+  def updateArrows(self, data):
+    self.arrows[data[2]] = (Sprites.Arrow(data[0][0], data[0][1], data[3], data[1] ))
 
   #Redrawing of Map
   def redrawMap(self, board):
@@ -75,6 +78,11 @@ class GameClient(object):
     for player in self.players:
       player.redraw(self.gameDisplay)
 
+    for arrow in self.arrows.values():
+      arrow.redraw(self.gameDisplay)
+      pygame.draw.rect(self.gameDisplay, (255,0,0), arrow.rect, 2)
+
+
     pygame.display.update()
   
   def recieveServerInfo(self):
@@ -82,9 +90,13 @@ class GameClient(object):
     while running:
       data, address = self.CLIENT.recvfrom(8192)
       data = pickle.loads(data)
-      self.updatePlayers(data)
+      if data[0] == "ACTION":
+        self.updatePlayers(data[1])
+      elif data[0] == "NEW_ARROW":
+        self.updateArrows(data[1])
 
   def gameLoop(self):
+    arrowId = 0
     run = True
     listener = threading.Thread(target = self.recieveServerInfo, args=())
     listener.daemon = True
@@ -92,11 +104,22 @@ class GameClient(object):
     while run:
       self.clock.tick(60)
 
+      for arrow in self.arrows.values():
+        if(arrow.isAlive == Sprites.Arrow.ALIVE):
+          arrow.move(self.players, self.solids)
+  
+
       # Loop for quitting and mouse event
       events = pygame.event.get()
       for event in events:
         if event.type == pygame.QUIT:
           run = False
+        if event.type == pygame.MOUSEBUTTONUP and self.clientPlayer.isAlive == Sprites.Player.ALIVE:
+          if(self.clientPlayer.amountOfArrows != 0):
+            self.clientPlayer.amountOfArrows -= 1
+            self.arrows[str(self.clientPlayer.number) + str(arrowId)] = (Sprites.Arrow( round(self.clientPlayer.x + 12), round(self.clientPlayer.y + 4), self.clientPlayer.number, pygame.mouse.get_pos() ))
+            arrowId += 1
+            self.sendToServer(["ARROW_SHOT", (round(self.clientPlayer.x + 12), round(self.clientPlayer.y + 4)), pygame.mouse.get_pos(), str(self.clientPlayer.number) + str(arrowId) ])
 
       if(self.clientPlayer.isAlive == Sprites.Player.ALIVE):
         self.clientPlayer.dashCooldown()
@@ -119,7 +142,7 @@ class GameClient(object):
         if keys[pygame.K_s]:
           self.clientPlayer.move("d", self.solids, self.arrows)
 
-        self.sendToServer([(self.clientPlayer.x,self.clientPlayer.y), self.clientPlayer.direction])
+        self.sendToServer(["ACTION", (self.clientPlayer.x,self.clientPlayer.y), self.clientPlayer.direction])
 
       # Update window screen
       self.redrawGameWindow()

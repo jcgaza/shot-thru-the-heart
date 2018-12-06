@@ -24,6 +24,7 @@ class GameServer(object):
     self.clientList = [] #addresses of the player
     self.clientHandlers = []
     self.playerList = []
+    self.arrowList = {}
     self.playerCount = -1 #easier in terms of indexing
     self.map = []
     self.solids = []
@@ -51,12 +52,20 @@ class GameServer(object):
       if(ch.playerNumber != num):
         ch.sendGameUpdate()
 
+  def sendShotArrows(self, data, num):
+    for ch in self.clientHandlers:
+      if(ch.playerNumber != num):
+        ch.sendNewArrow(data, num)
+
   def updatePlayerPos(self, pos, player):
     self.playerList[player].x = pos[0]
     self.playerList[player].y = pos[1]
 
   def updatePlayerDir(self, direction, player):
     self.playerList[player].direction = direction
+
+  def updateArrowList(self, data):
+    self.arrowList[data[3]] = Sprites.Arrow.ALIVE
 
   def getPlayerList(self):
     return self.playerList
@@ -123,15 +132,23 @@ class ClientHandler(threading.Thread, socket.socket):
       for x in players:
         info = (x.x, x.y, x.direction)
         playerInfo.append(info)
-    self.sendto(pickle.dumps(playerInfo), self.clientAddress)
+    self.sendto(pickle.dumps(("ACTION", playerInfo)), self.clientAddress)
+  
+  def sendNewArrow(self, data, num):
+    data.append(num)
+    self.sendto(pickle.dumps(("NEW_ARROW", data)), self.clientAddress)
 
   def recieveClientInfo(self):
     data, address = self.recvfrom(8192)
     data = pickle.loads(data)
     if data:
-      self.server.updatePlayerPos(data[0], self.playerNumber)
-      self.server.updatePlayerDir(data[1], self.playerNumber)
-      self.server.broadcast(self.playerNumber)
+      if(data[0] == "ACTION"):
+        self.server.updatePlayerPos(data[1], self.playerNumber)
+        self.server.updatePlayerDir(data[2], self.playerNumber)
+        self.server.broadcast(self.playerNumber)
+      elif (data[0] == "ARROW_SHOT"):
+        self.server.updateArrowList(data)
+        self.server.sendShotArrows([data[1], data[2], data[3]], self.playerNumber)
 
   def sendNewPlayer(self):
     players = self.server.playerList[:]
