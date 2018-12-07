@@ -93,7 +93,6 @@ class InputBox:
     screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
     pg.draw.rect(screen, self.color, self.rect, 2)
 
-
 class App:
   def __init__(self):
     self._running = True

@@ -1,6 +1,17 @@
 import pygame as pg 
 
 WALL_SIZE = 32
+class Wall:
+  def __init__(self, pos, filename):
+    self._image = pg.image.load("./assets/"+filename+".png")
+    self.pos = pos
+    self.rect = pg.Rect(pos, self._image.get_size())
+
+  def draw(self, screen):
+    screen.blit(self._image, self.rect)
+
+  def eventHandler(self):
+    pass
 
 class Map(object):
   def __init__(self):
@@ -25,8 +36,13 @@ class Map(object):
     for i in range(0, 20):
       for j in range(0, 20):
         if(board[i][j] == '1'):
-          walls.append(pg.Rect(WALL_SIZE*j, WALL_SIZE*i, WALL_SIZE, WALL_SIZE))
+          walls.append(Wall((WALL_SIZE*j, WALL_SIZE*i), "block"))
     return walls
 
+  def redrawWalls(self):
+    for wall in self.walls:
+      wall.draw(self.gameSurface)
+
   def redrawGame(self):
-    self.gameSurface.fill((255,255,255))
+    # self.gameSurface.fill((255,255,255))
+    self.redrawWalls()
