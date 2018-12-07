@@ -5,6 +5,7 @@ from os import listdir
 from os.path import isfile, join
 from threading import Thread
 from ChatClient import ChatClient
+from Map import Map
 
 # Only read images ONCE
 IMAGE_PATH = "./assets"
@@ -98,7 +99,7 @@ class App:
     self._running = True
     self._display_surf = None
     self._clock = pg.time.Clock()
-    self._state = START_PAGE
+    self._state = MAIN_PAGE
 
     self.size = (WIDTH, HEIGHT)
     self.font = None
@@ -107,7 +108,9 @@ class App:
     self.chatThread = Thread(target=self.chatClient.receiveMessages)
     self.chatThread.daemon = True
 
-    self.name = ""
+    self.name = "Ced"
+
+    self.gameMap = Map()
 
   def on_init(self):
     pg.init()
@@ -266,20 +269,7 @@ class App:
       self.chatClient.writeMessage(message)
       inputMessage.clearAll()
 
-    self.chatClient.printToUI = send
-    self.chatClient.connectAndChat(self.name, self.chatClient.createLobby(5))
-    self.chatThread.start()
-
-    inMessages = []
-    inputMessage = InputBox(1000, 590, 220, 30, self.font1)
-    sendButton = Button('send_button', (1230,593), lambda: sendAction(inputMessage.text))
-
-    rect = pg.Rect(1000, 20, 260, 560)
-    txt_surface = self.font1.render("", True, TEXT_COLOR)
-
-    while self._state == MAIN_PAGE:
-      self._display_surf.blit(images_dict['bg'], [0,0])
-
+    def events():
       for event in pg.event.get():
         if event.type == pg.QUIT:
           self._running = False
@@ -298,7 +288,24 @@ class App:
               
         inputMessage.eventHandler(event)
         sendButton.eventHandler(event)
+
+    self.chatClient.printToUI = send
+    self.chatClient.connectAndChat(self.name, self.chatClient.createLobby(5))
+    self.chatThread.start()
+
+    inMessages = []
+    inputMessage = InputBox(1000, 590, 220, 30, self.font1)
+    sendButton = Button('send_button', (1230,593), lambda: sendAction(inputMessage.text))
+
+    rect = pg.Rect(1000, 20, 260, 560)
+    txt_surface = self.font1.render("", True, TEXT_COLOR)
+
+    while self._state == MAIN_PAGE:
+      events()
       
+      self._display_surf.blit(images_dict['bg'], [0,0])
+      self.gameMap.redrawGame()
+      self._display_surf.blit(self.gameMap.gameSurface, (0,0))
       inputMessage.draw(self._display_surf)
       sendButton.draw(self._display_surf)
 
