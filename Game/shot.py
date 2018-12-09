@@ -228,15 +228,16 @@ pygame.init()
 gameDisplay = pygame.display.set_mode((640, 640))
 pygame.display.set_caption("Shot Thru the Heart")
 
-block = pygame.image.load("block.png")
+block = pygame.image.load("blocks1.png")
 clock = pygame.time.Clock()
+background = pygame.image.load('bg1.png')
 
 #Redrawing of Map
 def redrawMap(board):
   for i in range(0, 20):
     for j in range(0, 20):
       if(board[i][j] == '1'):
-        gameDisplay.blit(block, (32*j, 32*i))
+        gameDisplay.blit(block, (30*j, 30*i))
 
 def loadMap():
   gameHandler = open("map.txt", "r")
@@ -252,12 +253,13 @@ def getSolids(board):
   for i in range(0, 20):
     for j in range(0, 20):
       if(board[i][j] == '1'):
-        solid.append(pygame.Rect(32*j, 32*i, 32, 32))
+        solid.append(pygame.Rect(30*j, 30*i, 30, 30))
   return solid
   
 # Redrawing of window
 def redrawGameWindow(players, arrows):
   gameDisplay.fill((255,255,255))
+  gameDisplay.blit(background, (0,0))
   redrawMap(gameMap)
   for player in players:
     player.redrawPlayer()
@@ -270,8 +272,8 @@ def redrawGameWindow(players, arrows):
   pygame.display.update()
 
 # Client and List of players
-player = Player(0,0, 1, "player.png")
-player2 = Player(64,64,2, "player.png")
+player = Player(0,0, 1, "char3.png")
+player2 = Player(64,64,2, "char4.png")
 
 playerList = []
 playerList.append(player)
