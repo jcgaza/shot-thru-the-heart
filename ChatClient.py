@@ -74,7 +74,9 @@ class ChatClient():
     elif self.tcp.type == self.tcp.CHAT:
       self.chat.ParseFromString(data)
       print("{}: {}".format(self.chat.player.name, self.chat.message))
-      self.printToUI("{}: {}".format(self.chat.player.name, self.chat.message))
+      # self.printToUI("{}\n{}".format(self.chat.player.name, self.chat.message))
+      self.printToUI(self.chat.player.name)
+      self.printToUI("> "+self.chat.message)
 
     elif self.tcp.type == self.tcp.DISCONNECT:
       self.disconnect.ParseFromString(data)
@@ -109,8 +111,10 @@ class ChatClient():
     data = self.s.recv(ChatClient.BUFFER)
     playerList.ParseFromString(data)
 
+    self.printToUI("*********PLAYERS*********")
     for player in playerList.player_list:
-      print("{} is here.".format(player.name))
+      self.printToUI("{} is here.".format(player.name))
+    self.printToUI("*************************")
 
   def terminate(self):
     self.isConnected = False
@@ -120,13 +124,22 @@ class ChatClient():
   def disconnectChat(self):
     self.s.send(self.disconnect.SerializeToString())
 
+  def helpMenu(self):
+    inMessages = [
+      "**********COMMANDS*********",
+      " PLAYERS - See player list",
+      "    HELP - See commands",
+      "***************************"
+    ]
+
+    for i in range(0, len(inMessages)):
+      self.printToUI(inMessages[i])
+
   def writeMessage(self, message):
     if message.lower() == "help":
       self.helpMenu()
     elif message.lower() == "players":
       self.getPlayerList()
-    elif message.lower() == "exit":
-      self.disconnectChat()
     else:
       print(message)
       self.chat.message = message
