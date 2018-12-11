@@ -22,6 +22,7 @@ class ChatClient():
     self.disconnect.type = self.tcp.DISCONNECT
     self.chat = self.tcp.ChatPacket()
     self.chat.type = self.tcp.CHAT
+    self.isConnected = False
     
     try:
       self.s = socket(AF_INET, SOCK_STREAM)

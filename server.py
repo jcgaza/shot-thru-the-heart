@@ -29,12 +29,12 @@ class GameServer(object):
     self.map = []
     self.solids = []
     self.gameStart = [False]
+    self.lobbyId = ""
 
   def addConnectedPlayer(self, pos, address, number):
     self.clientList.append(address)
     player = "player" + str(number+1) + ".png"
     self.playerList.append(Sprites.Player(pos[0], pos[1],number, ["dead.png", player]))
-    print(len(self.playerList))
     self.SERVER.sendto(pickle.dumps(("ACK", self.playerList[number])), self.clientList[number])
     ch = ClientHandler(PORT+number+1, address, number, self)
     self.clientHandlers.append(ch)
@@ -89,30 +89,32 @@ class GameServer(object):
 
   def waitClients(self):
     startGame = True
-    while not startGame:
-      x = input("Choice - wait - start: ")
-      if x == "start":
-        break
+
+    while True:      
+      data, clientAddress = self.SERVER.recvfrom(8192)
+      data = pickle.loads(data)
+      print(data, " ", clientAddress)
       
-    data, clientAddress = self.SERVER.recvfrom(8192)
-    data = pickle.loads(data)
-    print(data, " ", clientAddress)
-    
-    if (data == "CONNECTING" and self.playerCount != 3):
-      print("A player has joined")
-      self.playerCount += 1
-      self.addConnectedPlayer(STARTING_POS[self.playerCount], clientAddress, self.playerCount)
+      if (data == "CONNECTING" and self.playerCount != 3):
+        print("A player has joined")
+        self.playerCount += 1
+        self.addConnectedPlayer(STARTING_POS[self.playerCount], clientAddress, self.playerCount)
+      elif data == "START":
+        data, clientAddress = self.SERVER.recvfrom(8192)
+        data = pickle.loads(data)
+        self.lobbyId = data
+        break
+
+    print("did exit")
 
     for ch in self.clientHandlers:
       ch.sendNewPlayer()
     
-    time.sleep(2)
     for ch in self.clientHandlers:
       ch.start()
     
     self.gameStart[0] = True
-    while not startGame:
-      self.clock.tick(60)
+    while True:
       x = input("Choice - end: ")
       if x == "end":
         break
@@ -166,7 +168,7 @@ class ClientHandler(threading.Thread, socket.socket):
     players = self.server.playerList[:]
     if len(players) != 0:
       players.pop(self.playerNumber)
-      self.sendto(pickle.dumps(players), self.clientAddress)
+      self.sendto(pickle.dumps([players, self.server.lobbyId]), self.clientAddress)
 
   def run(self):
     while True:

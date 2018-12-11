@@ -105,7 +105,7 @@ class InputBox:
 class GameClient(object):
   def __init__(self):
     pygame.init()
-    self.ADDRESS = "127.0.0.1"
+    self.ADDRESS = "localhost"
     self.PORT = 3000
     self.gameDisplay = pygame.display.set_mode((1280, 640))
     self.clock = pygame.time.Clock()
@@ -126,6 +126,7 @@ class GameClient(object):
     self.chatThread.daemon = True
     self.name = "Ced"
     self.isChatting = False
+    self.lobbyId = ""
 
   def sendToServer(self, data):
     self.CLIENT.sendto(pickle.dumps(data), (self.ADDRESS, self.PORT))
@@ -217,21 +218,9 @@ class GameClient(object):
       self.isChatting = False
       inputMessage.clearAll()
 
-    self.sendToServer("CONNECTING")
-    data, serverAddress = self.CLIENT.recvfrom(8192)
-    data = pickle.loads(data)
-    self.loadPlayer(data[1])
-    self.PORT = self.PORT + self.clientPlayer.number + 1
-
-    data, serverAddress = self.CLIENT.recvfrom(8192)
-    data = pickle.loads(data)
-    self.players = data
-    self.loadPlayers()
-
     arrowId = 0
 
     self.chatClient.printToUI = send
-    self.chatClient.connectAndChat(self.name, self.chatClient.createLobby(5))
     self.chatThread.start()
 
     listener = Thread(target = self.receiveServerInfo, args=())
@@ -343,6 +332,10 @@ class GameClient(object):
     startButton = Button('start_button', (980,380), lambda: nextPage(nameBox.text))
     nameBox = InputBox(120, 490, 835, 95, self.font)
 
+    self.sendToServer("CONNECTING")
+    data, serverAddress = self.CLIENT.recvfrom(8192)
+    data = pickle.loads(data)
+    self.loadPlayer(data[1])
     while self.state == NAME_PAGE:
       # display background
       self.gameDisplay.blit(images_dict['bg3'], [0,0])
@@ -358,7 +351,17 @@ class GameClient(object):
         elif event.type == pygame.KEYDOWN:
           if nameBox.active:
             if event.key == pygame.K_RETURN:
-              nextPage(nameBox.text)
+              self.sendToServer("START")  
+              if(self.clientPlayer.number == 0):
+                self.lobbyId = self.chatClient.createLobby(5)
+                self.sendToServer(self.lobbyId)
+                self.chatClient.connectAndChat(self.name, self.lobbyId)
+              data, serverAddress = self.CLIENT.recvfrom(8192)
+              data = pickle.loads(data)
+              self.players = data[0]
+              self.loadPlayers()
+              self.PORT = self.PORT + self.clientPlayer.number + 1
+              self.lobbyId = data[1]
             elif event.key == pygame.K_BACKSPACE:
               nameBox.clear()
             elif len(nameBox.text) < 10:
