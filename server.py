@@ -28,7 +28,7 @@ class GameServer(object):
     self.playerCount = -1 #easier in terms of indexing
     self.map = []
     self.solids = []
-    self.gameStart = [False]
+    self.gameStart = False
     self.lobbyId = ""
 
   def addConnectedPlayer(self, pos, address, number):
@@ -89,31 +89,33 @@ class GameServer(object):
 
   def waitClients(self):
     startGame = True
+    readyCount = 0
 
     while True:      
       data, clientAddress = self.SERVER.recvfrom(8192)
       data = pickle.loads(data)
       print(data, " ", clientAddress)
       
-      if (data == "CONNECTING" and self.playerCount != 3):
-        print("A player has joined")
+      if data == "READY":
         self.playerCount += 1
         self.addConnectedPlayer(STARTING_POS[self.playerCount], clientAddress, self.playerCount)
-      elif data == "START":
-        data, clientAddress = self.SERVER.recvfrom(8192)
-        data = pickle.loads(data)
-        self.lobbyId = data
-        break
-
-    print("did exit")
+        print("READY!")
+        readyCount += 1
+        if self.lobbyId == "":
+          data, clientAddress = self.SERVER.recvfrom(8192)
+          data = pickle.loads(data)
+          self.lobbyId = data
+        if readyCount == 2:
+          break
+    print("did exit ples")
 
     for ch in self.clientHandlers:
       ch.sendNewPlayer()
     
+    time.sleep(2)
     for ch in self.clientHandlers:
       ch.start()
     
-    self.gameStart[0] = True
     while True:
       x = input("Choice - end: ")
       if x == "end":
@@ -168,7 +170,7 @@ class ClientHandler(threading.Thread, socket.socket):
     players = self.server.playerList[:]
     if len(players) != 0:
       players.pop(self.playerNumber)
-      self.sendto(pickle.dumps([players, self.server.lobbyId]), self.clientAddress)
+      self.sendto(pickle.dumps(["START_GAME", players, self.server.lobbyId]), self.clientAddress)
 
   def run(self):
     while True:

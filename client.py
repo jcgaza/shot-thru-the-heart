@@ -128,6 +128,7 @@ class GameClient(object):
     self.name = "Ced"
     self.isChatting = False
     self.lobbyId = ""
+    self.roundStart = False
 
   def sendToServer(self, data):
     self.CLIENT.sendto(pickle.dumps(data), (self.ADDRESS, self.PORT))
@@ -324,8 +325,8 @@ class GameClient(object):
 
   def characterPage(self):
     def fightClicked():
-      self.state = MAIN_PAGE
-
+      print("fight clickkk")
+      
     player1Button = Button('ancient_exile_inactive', (250, 60), None)
     player2Button = Button('assassin_prince_inactive', (450, 60), None)
     player3Button = Button('last_of_the_order_inactive', (650, 60), None)
@@ -337,6 +338,7 @@ class GameClient(object):
     while self.state == CHARACTER_PAGE:
       # display background
       self.gameDisplay.blit(images_dict['bg3'], [0,0])
+        
 
       for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -354,6 +356,24 @@ class GameClient(object):
 
       pygame.display.flip()
       self.clock.tick(TICK_RATE)
+      
+      data, serverAddress = self.CLIENT.recvfrom(8192)
+      data = pickle.loads(data)
+      print(data)
+      self.players = data[1]
+      self.loadPlayers()
+      self.PORT = self.PORT + self.clientPlayer.number + 1
+
+      if(self.clientPlayer.number != 0 and len(self.lobbyId) != 5):
+        self.lobbyId = data[2]
+        self.chatClient.connectAndChat(self.name, self.lobbyId)
+        if data[0] == "START_GAME":
+          print("should exit")
+          self.state = MAIN_PAGE
+
+      if(self.clientPlayer.number == 0):
+        if data[0] == "START_GAME":
+          self.state = MAIN_PAGE
 
   def howtoplayPage(self):
     def homeClicked():
@@ -385,6 +405,15 @@ class GameClient(object):
   def namePage(self):
     def nextPage(name):
       self.setName(name)
+      self.sendToServer("READY")
+      data, serverAddress = self.CLIENT.recvfrom(8192)
+      data = pickle.loads(data)
+      self.loadPlayer(data[1])  
+      
+      if(self.clientPlayer.number == 0):
+        self.lobbyId = self.chatClient.createLobby(5)
+        self.sendToServer(self.lobbyId)
+        self.chatClient.connectAndChat(self.name, self.lobbyId)
       self.state = CHARACTER_PAGE
 
     def homeClicked():
@@ -394,10 +423,6 @@ class GameClient(object):
     nameBox = InputBox(120, 490, 835, 95, self.font)
     homeButton = Button('home_button', (0,45), homeClicked)
 
-    self.sendToServer("CONNECTING")
-    data, serverAddress = self.CLIENT.recvfrom(8192)
-    data = pickle.loads(data)
-    self.loadPlayer(data[1])
     while self.state == NAME_PAGE:
       # display background
       self.gameDisplay.blit(images_dict['bg3'], [0,0])
@@ -413,17 +438,7 @@ class GameClient(object):
         elif event.type == pygame.KEYDOWN:
           if nameBox.active:
             if event.key == pygame.K_RETURN:
-              self.sendToServer("START")  
-              if(self.clientPlayer.number == 0):
-                self.lobbyId = self.chatClient.createLobby(5)
-                self.sendToServer(self.lobbyId)
-                self.chatClient.connectAndChat(self.name, self.lobbyId)
-              data, serverAddress = self.CLIENT.recvfrom(8192)
-              data = pickle.loads(data)
-              self.players = data[0]
-              self.loadPlayers()
-              self.PORT = self.PORT + self.clientPlayer.number + 1
-              self.lobbyId = data[1]
+              nextPage(nameBox.text)
             elif event.key == pygame.K_BACKSPACE:
               nameBox.clear()
             elif len(nameBox.text) < 10:
