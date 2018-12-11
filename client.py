@@ -46,6 +46,7 @@ START_PAGE = 1
 NAME_PAGE = 2
 CHARACTER_PAGE = 3
 MAIN_PAGE = 4
+HOWTOPLAY_PAGE = 5
 
 class Button:
   def __init__(self, name, position, method):
@@ -153,13 +154,13 @@ class GameClient(object):
   #Redrawing of Map
   def redrawMap(self, board):
     for i in range(0, 20):
-      for j in range(0, 20):
+      for j in range(0, 30):
         if(board[i][j] == '1'):
           self.gameDisplay.blit(block, ((32*j)-10, 32*i))
 
   #Load map - TODO, pass filename for multple different maps
   def loadMap(self):
-    gameHandler = open("map.txt", "r")
+    gameHandler = open("map2.txt", "r")
     tileMap = []
     for lines in gameHandler:
       line = lines.split(",")
@@ -170,7 +171,7 @@ class GameClient(object):
   def getSolids(self, board):
     solid = []
     for i in range(0, 20):
-      for j in range(0, 20):
+      for j in range(0, 30):
         if(board[i][j] == '1'):
           solid.append(pygame.Rect( 32*j, 32*i, 32, 32))
     return solid
@@ -332,16 +333,77 @@ class GameClient(object):
 
     # Exit the game
 
+  def characterPage(self):
+    def fightClicked():
+      self.state = MAIN_PAGE
+
+    player1Button = Button('ancient_exile_inactive', (250, 60), None)
+    player2Button = Button('assassin_prince_inactive', (450, 60), None)
+    player3Button = Button('last_of_the_order_inactive', (650, 60), None)
+    player4Button = Button('turncloak_soldier_inactive', (850, 60), None)
+    fightButton = Button('fight_button', (340,400), fightClicked)
+
+    playerButtons = [player1Button, player2Button, player3Button, player4Button]
+
+    while self.state == CHARACTER_PAGE:
+      # display background
+      self.gameDisplay.blit(images_dict['bg3'], [0,0])
+
+      for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+          self.running = False
+          self.state = EXIT
+          #self.chatClient.terminate()
+          break
+
+        fightButton.eventHandler(event)
+
+      for player in playerButtons:
+        player.draw(self.gameDisplay)
+
+      fightButton.draw(self.gameDisplay)
+
+      pygame.display.flip()
+      self.clock.tick(TICK_RATE)
+
+  def howtoplayPage(self):
+    def homeClicked():
+      self.state = START_PAGE
+
+    homeButton = Button('home_button', (0,45), homeClicked)
+
+    while self.state == HOWTOPLAY_PAGE:
+      # display background
+      self.gameDisplay.blit(images_dict['how_to_play'], [0,0])
+
+      for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+          self.running = False
+          self.state = EXIT
+          #self.chatClient.terminate()
+          break
+
+        homeButton.eventHandler(event)
+
+      homeButton.draw(self.gameDisplay)
+
+      pygame.display.flip()
+      self.clock.tick(TICK_RATE)  
+
   def setName(self,name):
     self.name = name
 
   def namePage(self):
     def nextPage(name):
       self.setName(name)
-      self.state = MAIN_PAGE
+      self.state = CHARACTER_PAGE
+
+    def homeClicked():
+      self.state = START_PAGE  
 
     startButton = Button('start_button', (980,380), lambda: nextPage(nameBox.text))
     nameBox = InputBox(120, 490, 835, 95, self.font)
+    homeButton = Button('home_button', (0,45), homeClicked)
 
     while self.state == NAME_PAGE:
       # display background
@@ -366,6 +428,7 @@ class GameClient(object):
 
         nameBox.eventHandler(event)
         startButton.eventHandler(event)
+        homeButton.eventHandler(event)
 
       # Display logo
       self.gameDisplay.blit(images_dict['logo_test'], (0,0))
@@ -373,6 +436,7 @@ class GameClient(object):
       self.gameDisplay.blit(images_dict['name_bound'], (110,400))
       nameBox.draw(self.gameDisplay)
       startButton.draw(self.gameDisplay)
+      homeButton.draw(self.gameDisplay)
 
       pygame.display.flip()
       self.clock.tick(TICK_RATE)
@@ -386,7 +450,7 @@ class GameClient(object):
       self.state = EXIT
 
     def guidesClicked():
-      print("Coming soon!")
+      self.state = HOWTOPLAY_PAGE
 
     # Only instantiate ONCE
     versusButton = Button('versus_button', (500,360), versusClicked)
@@ -432,8 +496,10 @@ class GameClient(object):
         self.startPage()
       elif self.state == NAME_PAGE:
         self.namePage()
-      # elif self.state == CHARACTER_PAGE:
-      #   self.characterPage()
+      elif self.state == CHARACTER_PAGE:
+        self.characterPage()
+      elif self.state == HOWTOPLAY_PAGE:
+        self.howtoplayPage()  
       elif self.state == MAIN_PAGE:
         self.gameLoop()
       elif self.state == EXIT:
