@@ -5,7 +5,9 @@ from os import listdir
 from os.path import isfile, join
 from threading import Thread
 from ChatClient import ChatClient
+
 from Map import Map
+from Player import Player
 
 # Only read images ONCE
 IMAGE_PATH = "./assets"
@@ -24,7 +26,7 @@ for filename in char_images:
 # CONSTANTS
 HEIGHT = 640
 WIDTH = 1280
-TICK_RATE = 15
+TICK_RATE = 60
 
 COLOR_INACTIVE = pg.Color('lightskyblue3')
 COLOR_ACTIVE = pg.Color('dodgerblue2')
@@ -106,10 +108,12 @@ class App:
     self.chatClient = ChatClient()
     self.chatThread = Thread(target=self.chatClient.receiveMessages)
     self.chatThread.daemon = True
-
     self.name = "Ced"
 
+    self.player = Player(0, 0, 0, "./assets/characters/player1.png")
     self.gameMap = Map()
+    self.player.solids = self.gameMap.walls
+    self.gameMap.players.append(self.player)
 
   def on_init(self):
     pg.init()
@@ -276,17 +280,62 @@ class App:
           self.chatClient.terminate()
           break
 
-        elif event.type == pg.KEYDOWN:
-          if inputMessage.active:
-            if event.key == pg.K_RETURN:
-              sendAction(inputMessage.text)
-            elif event.key == pg.K_BACKSPACE:
-              inputMessage.clear()
-            else:
-              inputMessage.unicode(event)
+        # elif event.type == pg.KEYDOWN:
+          # if inputMessage.active:
+          #   if event.key == pg.K_RETURN:
+          #     sendAction(inputMessage.text)
+          #   elif event.key == pg.K_BACKSPACE:
+          #     inputMessage.clear()
+          #   else:
+          #     inputMessage.unicode(event)
               
         inputMessage.eventHandler(event)
         sendButton.eventHandler(event)
+
+      if(self.player.isAlive == Player.ALIVE):
+        # self.player.dashCooldown()
+        # For getting keys being pressed/held and movement
+        keys = pg.key.get_pressed()
+        # self.player.rotate()
+        # if keys[pygame.K_SPACE] and self.player.dashReady:
+        #   self.player.step = 64
+        #   self.player.dashReady = False
+
+        if keys[pg.K_a]:
+          self.player.move("l")
+        if keys[pg.K_d]:
+          self.player.move("r")
+        if keys[pg.K_w]:
+          self.player.move("u")
+        if keys[pg.K_s]:
+          self.player.move("d")
+
+    def redraw():
+      
+      # Background
+      self._display_surf.blit(images_dict['bg'], [0,0])
+      
+      # Map
+      self.gameMap.redrawGame()
+      self._display_surf.blit(self.gameMap.gameSurface, (0,0))
+      
+      # Players
+      # for player in self.players:
+      #   player.redrawPlayer(self._display_surf)
+
+      # Chat
+      inputMessage.draw(self._display_surf)
+      sendButton.draw(self._display_surf)
+
+      self._display_surf.fill(WHITE, rect)
+      pg.draw.rect(self._display_surf, WHITE, rect, 2)
+
+      for i in range(0,len(inMessages)):
+        renderText = self.font1.render(inMessages[i], True, TEXT_COLOR)
+        self._display_surf.blit(renderText, (1010, 25+(i*15)))
+      
+      pg.display.flip()
+      
 
     self.chatClient.printToUI = send
     self.chatClient.connectAndChat(self.name, self.chatClient.createLobby(5))
@@ -300,24 +349,10 @@ class App:
     txt_surface = self.font1.render("", True, TEXT_COLOR)
 
     while self._state == MAIN_PAGE:
-      events()
-      
-      self._display_surf.blit(images_dict['bg'], [0,0])
-      self.gameMap.redrawGame()
-      self._display_surf.blit(self.gameMap.gameSurface, (0,0))
-      inputMessage.draw(self._display_surf)
-      sendButton.draw(self._display_surf)
-
-      self._display_surf.fill(WHITE, rect)
-      pg.draw.rect(self._display_surf, WHITE, rect, 2)
-
-      for i in range(0,len(inMessages)):
-        renderText = self.font1.render(inMessages[i], True, TEXT_COLOR)
-        self._display_surf.blit(renderText, (1010, 25+(i*15)))
-      
-      pg.display.flip()
       self._clock.tick(TICK_RATE)
-
+      events()
+      redraw()
+      
 if __name__ == "__main__" :
   theApp = App()
   theApp.on_execute()
