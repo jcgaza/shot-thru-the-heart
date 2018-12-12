@@ -12,7 +12,7 @@ from os.path import isfile, join
 from ChatClient import ChatClient
 
 block = pygame.image.load("./assets/block.png")
-
+STARTING_POS = [(288, 128), (320, 320), (480, 288)]
 # Only read images ONCE
 IMAGE_PATH = "./assets"
 CHARACTERS_PATH = "./assets/characters"
@@ -106,7 +106,7 @@ class InputBox:
 class GameClient(object):
   def __init__(self):
     pygame.init()
-    self.ADDRESS = "localhost"
+    self.ADDRESS = "192.168.1.33"
     self.PORT = 3000
     self.gameDisplay = pygame.display.set_mode((1280, 640))
     self.clock = pygame.time.Clock()
@@ -129,6 +129,7 @@ class GameClient(object):
     self.isChatting = False
     self.lobbyId = ""
     self.roundStart = False
+    self.amountOfPlayers = 0
 
   def sendToServer(self, data):
     self.CLIENT.sendto(pickle.dumps(data), (self.ADDRESS, self.PORT))
@@ -148,6 +149,7 @@ class GameClient(object):
       self.players[i].x = data[i][0]
       self.players[i].y = data[i][1]
       self.players[i].direction = data[i][2]
+      self.players[i].isAlive = data[i][3]
       self.players[i].rotate(270)
 
   def updateArrows(self, data):
@@ -187,10 +189,10 @@ class GameClient(object):
     self.clientPlayer.redraw(self.gameDisplay)
     for player in self.players:
       player.redraw(self.gameDisplay)
+      pygame.draw.rect(self.gameDisplay, (255,0,0), self.clientPlayer.hitbox, 2)
 
     for arrow in self.arrows.values():
       arrow.redraw(self.gameDisplay)
-      pygame.draw.rect(self.gameDisplay, (255,0,0), arrow.rect, 2)
   
   def receiveServerInfo(self):
     running = True
@@ -203,12 +205,21 @@ class GameClient(object):
         self.updateArrows(data[1])
       elif data[0] == "PICKUP":
         self.updatePickedUpArrows(data[1])
+      elif data[0] == "END":
+        self.state = EXIT
 
   def updatePickedUpArrows(self, data):
-    for k,v in data.items():
-      self.arrows.pop(k)
+    print(data)
+    self.arrows.pop(data)
 
   def gameLoop(self):
+    inMessages = [
+      "**********COMMANDS*********",
+      " PLAYERS - See player list",
+      "    HELP - See commands",
+      "***************************"
+    ]
+    
     def send(message):
       if len(inMessages) > 24:
         inMessages.pop(0)
@@ -229,16 +240,17 @@ class GameClient(object):
     listener.daemon = True
     listener.start()
 
-    inMessages = [
-      "**********COMMANDS*********",
-      " PLAYERS - See player list",
-      "    HELP - See commands",
-      "***************************"
-    ]
+    
     inputMessage = InputBox(1000, 590, 260, 30, self.font1)
 
     while self.state == MAIN_PAGE:
-      self.clock.tick(60)
+      self.clock.tick(30)
+      if self.clientPlayer.points == 3:
+        self.chatClient.writeMessage(self.name + "WINS!")
+        self.chatClient.terminate()
+        self.state = EXIT
+        self.sendToServer("END")
+        break
 
       for arrow in self.arrows.values():
         if(arrow.isAlive == Sprites.Arrow.ALIVE):
@@ -295,7 +307,11 @@ class GameClient(object):
         if arrowPickedUp != "none":
           self.sendToServer(["PICKUP", arrowPickedUp])
 
-        self.sendToServer(["ACTION", (self.clientPlayer.x,self.clientPlayer.y), self.clientPlayer.direction])
+        self.sendToServer([("ACTION"), (self.clientPlayer.x,self.clientPlayer.y), self.clientPlayer.direction])
+      elif self.clientPlayer.isAlive == Sprites.Player.DEAD and not self.isChatting:
+        respawned = self.clientPlayer.respawn(STARTING_POS[self.clientPlayer.number])
+        if(respawned):
+          self.sendToServer("RESPAWNED")
 
       # Update window screen
       self.redrawGameWindow()
@@ -310,7 +326,7 @@ class GameClient(object):
       for i in range(900, 900-(self.clientPlayer.amountOfArrows*35), -35):
         self.gameDisplay.blit(images_dict['arrow'], (i, 570))
 
-      self.gameDisplay.blit(self.font.render("9", True, WHITE), (890, 10))
+      self.gameDisplay.blit(self.font.render(str(self.clientPlayer.points), True, WHITE), (890, 10))
       self.gameDisplay.blit(self.font2.render("POINTS", True, WHITE), (860, 0))
       self.gameDisplay.blit(self.font2.render("ARROWS", True, WHITE), (860, 540))
 
@@ -321,19 +337,20 @@ class GameClient(object):
 
       pygame.display.flip()
 
-    # Exit the game
 
+    # Exit the game
   def characterPage(self):
     def fightClicked():
       print("fight clickkk")
-      
-    player1Button = Button('ancient_exile_inactive', (250, 60), None)
-    player2Button = Button('assassin_prince_inactive', (450, 60), None)
-    player3Button = Button('last_of_the_order_inactive', (650, 60), None)
-    player4Button = Button('turncloak_soldier_inactive', (850, 60), None)
+
+    player1Button1 = Button('ancient_exile_active', (250, 60), None)
+    player2Button1 = Button('assassin_prince_active', (450, 60), None)
+    player3Button1 = Button('last_of_the_order_active', (650, 60), None)
+    player4Button1 = Button('turncloak_soldier_active', (850, 60), None)
+
     fightButton = Button('fight_button', (340,400), fightClicked)
 
-    playerButtons = [player1Button, player2Button, player3Button, player4Button]
+    player1Buttons = [player1Button1, player2Button1, player3Button1, player4Button1]
 
     while self.state == CHARACTER_PAGE:
       # display background
@@ -344,12 +361,12 @@ class GameClient(object):
         if event.type == pygame.QUIT:
           self.running = False
           self.state = EXIT
-          #self.chatClient.terminate()
+          self.chatClient.terminate()
           break
 
         fightButton.eventHandler(event)
 
-      for player in playerButtons:
+      for player in player1Buttons:
         player.draw(self.gameDisplay)
 
       fightButton.draw(self.gameDisplay)
@@ -370,10 +387,12 @@ class GameClient(object):
         if data[0] == "START_GAME":
           print("should exit")
           self.state = MAIN_PAGE
+          time.sleep(2)
 
       if(self.clientPlayer.number == 0):
         if data[0] == "START_GAME":
           self.state = MAIN_PAGE
+          time.sleep(2)
 
   def howtoplayPage(self):
     def homeClicked():
@@ -389,7 +408,7 @@ class GameClient(object):
         if event.type == pygame.QUIT:
           self.running = False
           self.state = EXIT
-          #self.chatClient.terminate()
+          self.chatClient.terminate()
           break
 
         homeButton.eventHandler(event)
@@ -408,7 +427,7 @@ class GameClient(object):
       self.sendToServer("READY")
       data, serverAddress = self.CLIENT.recvfrom(8192)
       data = pickle.loads(data)
-      self.loadPlayer(data[1])  
+      self.loadPlayer(data[1]) 
       
       if(self.clientPlayer.number == 0):
         self.lobbyId = self.chatClient.createLobby(5)
@@ -484,7 +503,7 @@ class GameClient(object):
         if event.type == pygame.QUIT:
           self.running = False
           self.state = EXIT
-          # self.chatClient.terminate()
+          self.chatClient.terminate()
           break
 
         # Check button events

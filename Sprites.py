@@ -1,5 +1,6 @@
 import pygame
 import math
+
 class GameSprite(object):
   ALIVE = 1
   DEAD = 0
@@ -42,7 +43,7 @@ class GameSprite(object):
 
 class Player(GameSprite):
   COOLDOWN = 3000
-
+  RESPAWN_TIME = 6000
   def __init__(self, x, y, number, sprite):
     GameSprite.__init__(self, x, y, number, sprite)
     self.width = 32
@@ -53,6 +54,7 @@ class Player(GameSprite):
     self.amountOfArrows = 2
     self.hitbox = (self.x+8, self.y+8, 24, 24)
     self.points = 0
+    self.timeOfDeath = 0
 
   def arrowPickup(self, arrows):
     for arrowId, arrow in arrows.items():
@@ -111,6 +113,16 @@ class Player(GameSprite):
       elif(direction == "d"):
         self.moveDown()
 
+    if self.x < 0:
+      self.x = 948
+    elif self.x > 948:
+      self.x = 0
+
+    if self.y < 0:
+      self.y = 608
+    elif self.y > 608:
+      self.y = 0
+
     pickup = self.arrowPickup(arrows)
     self.hitbox = (self.x+8, self.y+8, 24, 24)
     self.step = 6
@@ -133,6 +145,15 @@ class Player(GameSprite):
     if now - self.lastDash >= Player.COOLDOWN:
       self.dashReady = True
       self.lastDash = now
+
+  def respawn(self, pos):
+    now = pygame.time.get_ticks()
+    if now - self.timeOfDeath >= Player.RESPAWN_TIME:
+      self.isAlive = Player.ALIVE
+      self.x = pos[0]
+      self.y = pos[1]
+      return True
+    return False
 
 #######################ARROW CLASS#######################################
 class Arrow(GameSprite):
@@ -160,6 +181,9 @@ class Arrow(GameSprite):
         player.isAlive = Player.DEAD
         player.image = pygame.image.load("dead.png")
         self.isAlive = Arrow.DEAD
+        clientPlayer.points += 1
+        print(clientPlayer.points)
+        player.timeOfDeath = pygame.time.get_ticks()
         return
 
     if clientPlayer.number != self.number:
@@ -169,8 +193,14 @@ class Arrow(GameSprite):
       if(xyCollision and clientPlayer.isAlive == Player.ALIVE):
         clientPlayer.isAlive = Player.DEAD
         clientPlayer.image = pygame.image.load("dead.png")
-        self.isAlive = Arrow.DEAD
+        clientPlayer.timeOfDeath = pygame.time.get_ticks()
+        for x in playerList:
+          if x.number == self.number:
+            x.points += 1
+            print(x.points)
 
+        self.isAlive = Arrow.DEAD
+        return
     for solid in solids:
       xCollision = self.axisOverlap(solid[0], solid[2], self.rect[0]+x, self.rect[2])
       yCollision = self.axisOverlap(solid[1], solid[3], self.rect[1]+y, self.rect[3])
@@ -192,14 +222,14 @@ class Arrow(GameSprite):
 
     self.x += xVal
     self.y += yVal
-    if(self.x > 640):
+    if(self.x > 948):
       self.x = 0
     elif(self.x < 0):
-      self.x = 602
-    if(self.y > 640):
+      self.x = 948
+    if(self.y > 608):
       self.y = 0
     elif(self.y < 0):
-      self.y = 602
+      self.y = 608
     
     self.travelled = (self.travelled[0]+xVal, self.travelled[1]+yVal)
     self.rect = self.image.get_rect()

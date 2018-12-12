@@ -118,6 +118,7 @@ class ChatClient():
     self.printToUI("*************************")
 
   def terminate(self):
+    self.disconnectChat()
     self.isConnected = False
     self.s.shutdown(1)
     self.s.close()

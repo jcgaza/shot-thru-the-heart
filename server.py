@@ -8,7 +8,7 @@ import time
 
 # Constants
 MAX_PLAYERS = 4
-ADDRESS = "localhost"
+ADDRESS = "192.168.1.33"
 PORT = 3000
 STARTING_POS = [(288, 128), (320, 320), (480, 288)]
 MAPS = ["map.txt"]
@@ -59,9 +59,10 @@ class GameServer(object):
 
   def sendArrowPickUp(self, data, num):
     self.arrowList.pop(data)
+    print(data)
     for ch in self.clientHandlers:
       if(ch.playerNumber != num):
-        ch.sendPickUpArrowId(self.arrowList)
+        ch.sendPickUpArrowId(data)
 
   def updatePlayerPos(self, pos, player):
     self.playerList[player].x = pos[0]
@@ -75,6 +76,12 @@ class GameServer(object):
 
   def getPlayerList(self):
     return self.playerList
+
+  def endThis(self, num):
+    self.gameStart = False
+    for ch in self.clientHandlers:
+      if(ch.playerNumber != num):
+        ch.endGame()
 
   def getSolids(board):
     solid = []
@@ -105,9 +112,8 @@ class GameServer(object):
           data, clientAddress = self.SERVER.recvfrom(8192)
           data = pickle.loads(data)
           self.lobbyId = data
-        if readyCount == 2:
+        if readyCount == 3:
           break
-    print("did exit ples")
 
     for ch in self.clientHandlers:
       ch.sendNewPlayer()
@@ -141,7 +147,7 @@ class ClientHandler(threading.Thread, socket.socket):
     playerInfo = []
     if len(players) != 0:
       for x in players:
-        info = (x.x, x.y, x.direction)
+        info = (x.x, x.y, x.direction, x.isAlive)
         playerInfo.append(info)
     self.sendto(pickle.dumps(("ACTION", playerInfo)), self.clientAddress)
   
@@ -152,6 +158,9 @@ class ClientHandler(threading.Thread, socket.socket):
   def sendPickUpArrowId(self, data):
     self.sendto(pickle.dumps(("PICKUP", data)), self.clientAddress)
   
+  def endGame(self):
+    seld.sendto(pickle.dumps("END"), self.clientAddress)
+
   def recieveClientInfo(self):
     data, address = self.recvfrom(8192)
     data = pickle.loads(data)
@@ -165,6 +174,10 @@ class ClientHandler(threading.Thread, socket.socket):
         self.server.sendShotArrows([data[1], data[2], data[3]], self.playerNumber)
       elif (data[0] == "PICKUP"):
         self.server.sendArrowPickUp(data[1], self.playerNumber)
+      elif(data[0] == "RESPAWNED"):
+        self.server.broadcast(self.playerNumber)
+      elif(data[0] == "END"):
+        self.server.endThis(self.playerNumber)
 
   def sendNewPlayer(self):
     players = self.server.playerList[:]
@@ -177,7 +190,7 @@ class ClientHandler(threading.Thread, socket.socket):
       self.recieveClientInfo()
 
   def join(self, timeout=None):
-    super().join(timeout=10)
+    super().join(timeout=60)
     self.close() 
 
 server = GameServer()
